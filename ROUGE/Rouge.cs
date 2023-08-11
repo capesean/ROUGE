@@ -8,7 +8,7 @@
         // todo: allow caller to set these
         private static readonly List<Metric> Metrics = new() { Metric.Rouge1, Metric.Rouge2, Metric.Rouge3, Metric.Rouge4, Metric.Rouge5, Metric.RougeL };
 
-        public static Dictionary<Metric, Score> GetScores(string systemSummary, string referenceSummary, bool exclusive = false)
+        public static Dictionary<Metric, Score> GetScores(string systemSummary, string referenceSummary, bool exclusive = true)
         {
             var metricScores = new Dictionary<Metric, Score>();
 
@@ -21,19 +21,20 @@
                    .ToList();
 
             foreach (var metric in Metrics)
-                metricScores.Add(metric, GetMetricScore(systemSentences, referenceSentences, metric, exclusive));
+                if (metric != Metric.RougeL)
+                    metricScores.Add(metric, GetMetricScore(systemSentences, referenceSentences, metric, exclusive));
 
             return metricScores;
         }
 
-        private static Ngrams GetNgrams(int n, string text, bool exclusive = true)
+        private static Ngrams GetNgrams(int n, List<string> words, bool exclusive = true)
         {
             var ngramSet = new Ngrams(exclusive: exclusive);
-            var textLength = text.Length;
+            var textLength = words.Count();
             var maxIndexNgramStart = textLength - n;
 
             for (var i = 0; i <= maxIndexNgramStart; i++)
-                ngramSet.Add(text.Substring(i, n));
+                ngramSet.Add(words.Skip(i).Take(n).ToList());
 
             return ngramSet;
         }
@@ -49,18 +50,17 @@
                 throw new ArgumentException("Number of sentences and n should be greater than 0");
 
             var words = SplitIntoWords(sentences);
-            return GetNgrams(n, string.Join(" ", words), exclusive: exclusive);
+            return GetNgrams(n, words, exclusive: exclusive);
         }
 
         private static Score GetMetricScore(
-            List<string> systemSentences, 
+            List<string> systemSentences,
             List<string> referenceSentences,
-            Metric metric = Metric.Rouge2, 
+            Metric metric = Metric.Rouge2,
             bool exclusive = true
             )
         {
             if (metric == Metric.RougeL) throw new NotImplementedException();
-
             if (!systemSentences.Any()) throw new Exception("System Summary is empty.");
             if (!referenceSentences.Any()) throw new Exception("Reference Summary is empty.");
 
